@@ -37,6 +37,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         context = this;
+        findTableButton = findViewById(R.id.findTableButton);
         findTableButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -44,46 +45,51 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         SensorReceiver sensorReceiver = new SensorReceiver(context);
-                        send(data);
                     }
                 }).start();
             }
         });
 
-        String serverUrl = "  ";
+        /*String serverUrl = "  ";
         Observable<String> observable = Observable.create(emitter -> {
             try {
                 String result = (new HttpHandler()).makeHttpRequest(serverUrl);
                 emitter
             }
-        });
-
-        observable.subscribeOn(Scheduler.io())
-                .observeOn(AndroidSchdulers.mainThread())
-                .subsribe(new Observer<String>() {
-                    @Override
-                    public void onSubscribe(@NonNull Disposable d) {
-
-                    }
-
-                    @Override
-                    public void onNext(@NonNull String result) {
-                        processHttpResponse(result);
-                    }
-
-                    @Override
-                    public void onError(@NonNull Throwable e) {
-                        e.printStackTrace();
-                    }
-
-                    @Override
-                    public void onComplete() {
-
-                    }
-                }) {
-        }
+        });*/
     }
 
+    /*public boolean getUserInfo(final Context context) {
+
+        try {
+            OkHttpClient client = new OkHttpClient();
+
+            String url = SERVER_CONFIGURATION.ADDRESS + ":" +
+                    SERVER_CONFIGURATION.PORT + "/v1/userinfo";
+
+            Request request = new Request.Builder()
+                    .addHeader("Authorization", "TEST AUTH")
+                    .url(url)
+                    .build();
+            Response response = client.newCall(request)
+                    .execute();
+
+            String result = response.body().string();
+
+            Gson gson = new Gson();
+            UserInfo info = gson.fromJson(result, UserInfo.class);
+
+            Log.i("id: " + info.id);
+            Log.i("name: " + info.name);
+
+            return true;
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+
+        return false;
+    }*/
+/*
     public void printClientLog(final String data) {
         Log.d("MainActivity", data);
 
@@ -153,6 +159,6 @@ public class MainActivity extends AppCompatActivity {
             ex.printStackTrace();
         }
     }
-
+*/
 
 }

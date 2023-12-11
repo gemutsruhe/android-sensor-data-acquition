@@ -7,6 +7,7 @@ import android.hardware.SensorEventListener2;
 import android.hardware.SensorManager;
 import android.util.Log;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -27,12 +28,19 @@ import okhttp3.Response;
 
 public class SensorReceiver implements SensorEventListener2 {
 
-    Map<String, List<String>> sensorDataType = new HashMap<>() {{
-        put("ACCELEROMETER", Arrays.asList("x","y","z"));
-        put("GYROSCOPE", Arrays.asList("x","y","z"));
-        put("LIGHT", Arrays.asList("x","y","z"));
+    Map<String, List<String>> sensorDataType = new HashMap<String, List<String>>() {{
+        put("LSM6DSO Acceleration Sensor", Arrays.asList("x","y","z"));
+        put("LSM6DSO Gyroscope Sensor", Arrays.asList("x","y","z"));
+        put("TMD4910 Uncalibrated lux Sensor", Arrays.asList("x","y","z"));
         put("MAGNETIC_FIELD", Arrays.asList("x","y","z"));
+        put("Gravity Sensor", Arrays.asList("x","y","z"));
     }};
+
+    Map<String, JSONArray> dataMap = new HashMap<String, JSONArray>() {{
+        put("LSM6DSO Acceleration Sensor", new JSONArray());
+        put("LSM6DSO Gyroscope Sensor", new JSONArray());
+    }};
+
 
     private SensorManager sensorManager;
 
@@ -45,7 +53,7 @@ public class SensorReceiver implements SensorEventListener2 {
     private Sensor magneticSensor;
     private Sensor stepCounterSensor;
     private Sensor gameRotationVectorSensor;
-
+    int count = 0;
     @Override
     public void onFlushCompleted(Sensor sensor) {
 
@@ -55,6 +63,13 @@ public class SensorReceiver implements SensorEventListener2 {
         sensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
 
         getSensors();
+
+        //registerSensor(gyroscopeSensor);
+        //registerSensor(accelerometerSensor);
+        //registerSensor(gravitySensor);
+        //registerSensor(lightSensor);
+        //registerSensor(linearAccelerationSensor);
+
         Observable<SensorEvent> sensorObservable = createSensorObservable();
 
         // 주기적으로 서버에 데이터 업로드
@@ -76,18 +91,35 @@ public class SensorReceiver implements SensorEventListener2 {
         magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
         stepCounterSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
         gameRotationVectorSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR);
-        if(gyroscopeSensor != null) {
-            sensorManager.registerListener(this, gyroscopeSensor, SensorManager.SENSOR_DELAY_NORMAL);
-        }
     }
 
     private void registerSensor(Sensor sensor) {
         if(sensor != null) {
             sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_FASTEST);
+            Log.e("TEST", sensor.getName());
         }
     }
     private Observable<SensorEvent> createSensorObservable() {
         return Observable.create((ObservableOnSubscribe<SensorEvent>) emitter -> {
+            SensorEventListener2 sensorEventListener = new SensorEventListener2() {
+                @Override
+                public void onFlushCompleted(Sensor sensor) {
+
+                }
+
+                @Override
+                public void onSensorChanged(SensorEvent event) {
+
+                    emitter.onNext(event);
+
+                    uploadDataToServer(event);
+                }
+
+                @Override
+                public void onAccuracyChanged(Sensor sensor, int accuracy) {
+                    // Handle accuracy changes if needed
+                }
+            };
             /*sensorManager.registerListener(this, gyroscopeSensor, SensorManager.SENSOR_DELAY_FASTEST);
             sensorManager.registerListener(this, accelerometerSensor, SensorManager.SENSOR_DELAY_FASTEST);
             sensorManager.registerListener(this, gravitySensor, SensorManager.SENSOR_DELAY_FASTEST);
@@ -97,10 +129,11 @@ public class SensorReceiver implements SensorEventListener2 {
             sensorManager.registerListener(this, stepCounterSensor, SensorManager.SENSOR_DELAY_FASTEST);
             sensorManager.registerListener(this, gameRotationVectorSensor, SensorManager.SENSOR_DELAY_FASTEST);*?
              */
-            for(Sensor sensor : sensorList) registerSensor(sensor);
+            //for(Sensor sensor : sensorList) registerSensor(sensor);
             registerSensor(gyroscopeSensor);
-            registerSensor(accelerometerSensor);
-
+            //registerSensor(accelerometerSensor);
+            //registerSensor(gravitySensor);
+            //registerSensor(lightSensor);
 
             emitter.setCancellable(() -> {
                 sensorManager.unregisterListener(this);
@@ -110,6 +143,32 @@ public class SensorReceiver implements SensorEventListener2 {
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
+        //sensorEvent.sensor.getName();
+
+        //Log.e("TEST", sensorEvent.sensor.getName() + " : " + sensorEvent.sensor.toString());
+        String value = "";
+        for(int i = 0; i < sensorEvent.values.length; i++)  value += sensorEvent.values[i] + "    ";
+        //Log.e("TEST", value);
+
+
+        if(sensorEvent.sensor.getName() == "LSM6DSO Gyroscope Sensor") {
+
+            dataMap.get(sensorEvent.sensor.getName()).put(getSensorData(sensorEvent));
+
+            if(count == 99) {
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        uploadDataToServer(sensorEvent);
+
+                    }
+                }).start();
+            }
+            count++;
+            count %= 100;
+        }
+
+
 
     }
 
@@ -118,7 +177,7 @@ public class SensorReceiver implements SensorEventListener2 {
 
     }
 
-    private String getSensorData(SensorEvent sensorEvent) {
+    private JSONObject getSensorData(SensorEvent sensorEvent) {
         JSONObject jsonObject = new JSONObject();
 
         long timestamp = sensorEvent.timestamp;
@@ -133,35 +192,49 @@ public class SensorReceiver implements SensorEventListener2 {
         }
 
         for(int i = 0; i < values.length; i++) {
-            jsonObject.put(sensorsensorNamevalues[i]);
+            try {
+                //Log.e("TEST", "sensorName : " + sensorName);
+                jsonObject.put(sensorDataType.get(sensorName).get(i), String.valueOf(sensorEvent.values[i]));
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
         }
-        return null;
+        return jsonObject;
     }
 
     private void uploadDataToServer(SensorEvent sensorEvent) {
-        String serverUrl = "http://example.com/upload";;
+        String serverUrl = "https://4a35-14-36-150-190.ngrok-free.app/";;
 
+        //String sensorData = getSensorData(sensorEvent);
+
+        String sensorData = dataMap.get(sensorEvent.sensor.getName()).toString();
+        //dataMap.get(sensorEvent.sensor.getName().toString()).new JSONArray();
         OkHttpClient client = new OkHttpClient();
 
         RequestBody requestBody = RequestBody.create(sensorData, MediaType.get("application/json"));
-
         // 서버에 POST 요청을 생성
         Request request = new Request.Builder()
                 .url(serverUrl)
                 .post(requestBody)
                 .build();
 
+
+
         try {
             Response response = client.newCall(request).execute();
+            String dataString = response.body().toString();
+            JSONObject dataJson = new JSONObject(dataString);
+            //JSONArray data = dataJson.getJSONArray("")
             if (response.isSuccessful()) {
-                Log.d("SensorUpload", "Data uploaded to server: " + sensorData);
+                Log.e("TEST", "Data uploaded to server: " + sensorData);
+                Log.e("TEST", "Response : " + dataJson.toString());
             } else {
-                Log.e("SensorUpload", "Failed to upload data. Response code: " + response.code());
+                Log.e("TEST", "Failed to upload data. Response code: " + response.code());
             }
-
             response.close();
         } catch (Exception e) {
             // 예외 처리
+            Log.e("TEST", e.toString());
             e.printStackTrace();
         }
     }

@@ -13,7 +13,7 @@ import java.net.URLEncoder;
 
 public class HttpHandler {
 
-    public String makeHttpRequest(String urlString) {
+    /*public String makeHttpRequest(String urlString) {
         String result = null;
 
         try {
@@ -81,5 +81,5 @@ public class HttpHandler {
             // 서버 응답 처리
             Log.d("HTTP_RESULT", result);
         }
-    }
+    }*/
 }
