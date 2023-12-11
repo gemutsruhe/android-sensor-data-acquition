@@ -39,6 +39,7 @@ public class SensorReceiver implements SensorEventListener2 {
     Map<String, JSONArray> dataMap = new HashMap<String, JSONArray>() {{
         put("LSM6DSO Acceleration Sensor", new JSONArray());
         put("LSM6DSO Gyroscope Sensor", new JSONArray());
+        put("TMD4910 Uncalibrated lux Sensor", new JSONArray());
     }};
 
 
@@ -130,10 +131,10 @@ public class SensorReceiver implements SensorEventListener2 {
             sensorManager.registerListener(this, gameRotationVectorSensor, SensorManager.SENSOR_DELAY_FASTEST);*?
              */
             //for(Sensor sensor : sensorList) registerSensor(sensor);
-            registerSensor(gyroscopeSensor);
+            //registerSensor(gyroscopeSensor);
             //registerSensor(accelerometerSensor);
             //registerSensor(gravitySensor);
-            //registerSensor(lightSensor);
+            registerSensor(lightSensor);
 
             emitter.setCancellable(() -> {
                 sensorManager.unregisterListener(this);
@@ -149,8 +150,10 @@ public class SensorReceiver implements SensorEventListener2 {
         String value = "";
         for(int i = 0; i < sensorEvent.values.length; i++)  value += sensorEvent.values[i] + "    ";
         //Log.e("TEST", value);
-
-
+        JSONObject jsonObject = getSensorData(sensorEvent);
+        dataMap.get(sensorEvent.sensor.getName()).put(jsonObject);
+        Log.e("TEST", jsonObject.toString());
+        if(dataMap.get(sensorEvent.sensor.getName()).length() % 100 == 0) Log.e("TEST", String.valueOf(dataMap.get(sensorEvent.sensor.getName()).length()));
         if(sensorEvent.sensor.getName() == "LSM6DSO Gyroscope Sensor") {
 
             dataMap.get(sensorEvent.sensor.getName()).put(getSensorData(sensorEvent));
@@ -206,9 +209,11 @@ public class SensorReceiver implements SensorEventListener2 {
         String serverUrl = "https://4a35-14-36-150-190.ngrok-free.app/";;
 
         //String sensorData = getSensorData(sensorEvent);
-
+        JSONArray dataJsonArray = dataMap.get(sensorEvent.sensor.getName());
+        Log.e("TEST", String.valueOf(dataJsonArray.length()));
         String sensorData = dataMap.get(sensorEvent.sensor.getName()).toString();
         //dataMap.get(sensorEvent.sensor.getName().toString()).new JSONArray();
+        Log.e("TEST", sensorData);
         OkHttpClient client = new OkHttpClient();
 
         RequestBody requestBody = RequestBody.create(sensorData, MediaType.get("application/json"));
@@ -238,4 +243,18 @@ public class SensorReceiver implements SensorEventListener2 {
             e.printStackTrace();
         }
     }
+
+    public void pause(){
+        //sensorManager.unregisterListener(this);
+        sensorManager.unregisterListener(this, lightSensor);
+        for(int i = 0; i < dataMap.get("TMD4910 Uncalibrated lux Sensor").length(); i++) {
+            try {
+                Log.e("TEST", dataMap.get("TMD4910 Uncalibrated lux Sensor").get(i).toString());
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        //uploadDataToServer();
+    }
+
 }

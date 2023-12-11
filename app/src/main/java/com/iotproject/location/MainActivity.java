@@ -29,24 +29,62 @@ import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
 
-    Button findTableButton;
+
+    Button is213Button;
+
+    boolean is213ButtonClicked;
+    Button thisTableButton;
+    boolean thisTableButtonClicked;
     Handler handler = new Handler();
     Context context;
+    SensorReceiver sensorReceiver;
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         context = this;
-        findTableButton = findViewById(R.id.findTableButton);
-        findTableButton.setOnClickListener(new View.OnClickListener() {
+        is213Button = findViewById(R.id.is213Button);
+        thisTableButton = findViewById(R.id.thisTableButton);
+
+        is213Button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        SensorReceiver sensorReceiver = new SensorReceiver(context);
-                    }
-                }).start();
+                is213ButtonClicked = !is213ButtonClicked;
+                if(is213ButtonClicked) {
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+
+                        }
+                    }).start();
+                } else {
+                    //sensorReceiver.pause();
+                }
+            }
+        });
+        thisTableButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                thisTableButtonClicked = !thisTableButtonClicked;
+                if(thisTableButtonClicked) {
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            sensorReceiver = new SensorReceiver(context);
+                            thisTableButton.setText("running");
+                            try {
+                                Thread.sleep(10000);
+                            } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
+                            sensorReceiver.pause();
+                            thisTableButton.setText("THIS TABLE");
+                            //sensorReceiver.
+                            thisTableButtonClicked = !thisTableButtonClicked;
+                        }
+                    }).start();
+                }
+
             }
         });
 

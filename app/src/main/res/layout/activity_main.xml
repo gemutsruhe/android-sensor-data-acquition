@@ -15,11 +15,11 @@
         android:id="@+id/is213Button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Button" />
+        android:text="is 213" />
 
     <Button
-        android:id="@+id/findTableButton"
+        android:id="@+id/thisTableButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Button" />
+        android:text="this table" />
 </LinearLayout>
