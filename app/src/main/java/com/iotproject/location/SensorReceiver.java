@@ -11,6 +11,12 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -20,6 +26,7 @@ import java.util.Map;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.ObservableOnSubscribe;
 import okhttp3.MediaType;
+import okhttp3.OkHttp;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -27,14 +34,14 @@ import okhttp3.Response;
 
 public class SensorReceiver implements SensorEventListener2 {
 
-    ArrayList<String> sensorNameList = new ArrayList<>(Arrays.asList("LSM6DSO Acceleration Sensor", "LSM6DSO Gyroscope Sensor", "TMD4910 Uncalibrated lux Sensor"));
+    ArrayList<String> sensorNameList = new ArrayList<>(Arrays.asList("accelerometer", "gyroscope", "light", "magnetic_field", "gravity"));
 
     Map<String, List<String>> sensorDataType = new HashMap<String, List<String>>() {{
-        put("LSM6DSO Acceleration Sensor", Arrays.asList("x","y","z"));
-        put("LSM6DSO Gyroscope Sensor", Arrays.asList("x","y","z"));
-        put("TMD4910 Uncalibrated lux Sensor", Arrays.asList("x"));
-        put("MAGNETIC_FIELD", Arrays.asList("x","y","z"));
-        put("Gravity Sensor", Arrays.asList("x","y","z"));
+        put("accelerometer", Arrays.asList("x","y","z"));
+        put("gyroscope", Arrays.asList("x","y","z"));
+        put("light", Arrays.asList("x"));
+        put("magnetic_field", Arrays.asList("x","y","z"));
+        put("gravity", Arrays.asList("x","y","z"));
     }};
 
     Map<String, JSONArray> onDataMap;
@@ -63,6 +70,8 @@ public class SensorReceiver implements SensorEventListener2 {
 
         registerSensor(accelerometerSensor);
         registerSensor(gyroscopeSensor);
+        registerSensor(magneticSensor);
+        registerSensor(gravitySensor);
         registerSensor(lightSensor);
 
         //Observable<SensorEvent> sensorObservable = createSensorObservable();
@@ -90,7 +99,7 @@ public class SensorReceiver implements SensorEventListener2 {
 
     private void registerSensor(Sensor sensor) {
         if(sensor != null) {
-            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_FASTEST);
+            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI);
         }
     }
     /*private Observable<SensorEvent> createSensorObservable() {
@@ -128,8 +137,11 @@ public class SensorReceiver implements SensorEventListener2 {
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
+        //Log.e("TEST5", sensorEvent.sensor.getStringType());
         JSONObject jsonObject = getSensorData(sensorEvent);
-        onDataMap.get(sensorEvent.sensor.getName()).put(jsonObject);
+        String[] splitStringType = sensorEvent.sensor.getStringType().split("\\.");
+        String sensorName = splitStringType[2];
+        onDataMap.get(sensorName).put(jsonObject);
     }
 
     @Override
@@ -141,7 +153,10 @@ public class SensorReceiver implements SensorEventListener2 {
         JSONObject jsonObject = new JSONObject();
 
         long timestamp = sensorEvent.timestamp;
-        String sensorName = sensorEvent.sensor.getName();
+        String[] splitStringType = sensorEvent.sensor.getStringType().split("\\.");
+        String sensorName = splitStringType[2];
+        //String sensorName = sensorEvent.sensor.getName();
+
         float[] values = sensorEvent.values;
 
         try {
@@ -153,7 +168,7 @@ public class SensorReceiver implements SensorEventListener2 {
         for(int i = 0; i < values.length; i++) {
             try {
                 //Log.e("TEST", "sensorName : " + sensorName);
-                jsonObject.put(sensorDataType.get(sensorName).get(i), String.valueOf(sensorEvent.values[i]));
+                jsonObject.put(sensorName + " " + sensorDataType.get(sensorName).get(i), String.valueOf(sensorEvent.values[i]));
             } catch (JSONException e) {
                 throw new RuntimeException(e);
             }
@@ -164,6 +179,11 @@ public class SensorReceiver implements SensorEventListener2 {
     public void uploadData(){
 
         JSONObject dataObject = new JSONObject();
+        try {
+            dataObject.put("label", "test");
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
 
         for(int i = 0; i < sensorNameList.size(); i++) {
             try {
@@ -173,30 +193,56 @@ public class SensorReceiver implements SensorEventListener2 {
             }
         }
         offDataMap = initDataMap();
+        try {
+            dataObject.put("timestamp", System.nanoTime());
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
+        uploadDataToServer(dataObject.toString());
+    }
 
+    public void uploadData(String tableLabel){
+
+        JSONObject dataObject = new JSONObject();
+        try {
+            dataObject.put("label", tableLabel);
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
+
+        for(int i = 0; i < sensorNameList.size(); i++) {
+            try {
+                dataObject.put(sensorNameList.get(i), offDataMap.get(sensorNameList.get(i)));
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        offDataMap = initDataMap();
+        /*try {
+            dataObject.put("timestamp", System.nanoTime());
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }*/
         uploadDataToServer(dataObject.toString());
     }
 
     private void uploadDataToServer(String data) {
-        String serverUrl = "https://4a35-14-36-150-190.ngrok-free.app/";;
+        //String serverUrl = "http://ec2-18-221-192-14.us-east-2.compute.amazonaws.com:3000";
+        //String serverUrl = "http://10.210.60.238:3000";
+        String serverUrl = "http://10.210.61.152:3000";
 
         OkHttpClient client = new OkHttpClient();
-
-        RequestBody requestBody = RequestBody.create(data, MediaType.get("application/json"));
-        // 서버에 POST 요청을 생성
+        RequestBody requestBody = RequestBody.create(data, MediaType.parse("application/json"));
         Request request = new Request.Builder()
                 .url(serverUrl)
+                .header("Content-Type", "application/json;utf-8")
                 .post(requestBody)
                 .build();
-
         try {
+            Log.e("TEST", String.valueOf(request.body().contentLength()));
             Response response = client.newCall(request).execute();
-            //String dataString = response.body().toString();
-            //JSONObject dataObject = new JSONObject(dataString);
-            //JSONArray data = dataJson.getJSONArray("")
             if (response.isSuccessful()) {
                 Log.e("TEST", "Data uploaded to server");
-                //Log.e("TEST", "Response : " + dataObject.toString());
             } else {
                 Log.e("TEST", "Failed to upload data. Response code: " + response.code());
             }

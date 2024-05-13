@@ -5,21 +5,41 @@
     android:orientation="vertical">
 
 
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="TextView" />
-
     <Button
         android:id="@+id/is213Button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="is 213" />
 
+    <TextView
+        android:id="@+id/isInDoorTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="where" />
+
     <Button
         android:id="@+id/thisTableButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="this table" />
+
+    <Button
+        android:id="@+id/getThisTableButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Button" />
+
+    <EditText
+        android:id="@+id/setTableLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:inputType="text"
+        android:text="check-1-1-1" />
+
+    <LinearLayout
+        android:id="@+id/tableAccuracyLinearLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"></LinearLayout>
 </LinearLayout>
